@@ -9,8 +9,6 @@ local colors = {
 
 local normal_scale = 0.15
 local pressed_scale = 0.13
-local grab_scale = 0.16
-
 
 function init(self)
 	go.set_scale(normal_scale)
@@ -27,17 +25,6 @@ function init(self)
 
 	self.velocity = vmath.vector3(0, 0, 0)
 end
-
--- function on_input(self, action_id, action)
--- 	print("move")
--- 	if self.grabed and not action_id then 
--- 		print("move")
--- 		local current_pos = go.get_position()
--- 		local target_pos = vmath.vector3(action.x, action.y, 0)
--- 		local distance = vmath.length(target_pos - current_pos)
--- 		go.animate(".", "position", go.PLAYBACK_ONCE_FORWARD, target_pos, go.EASING_LINEAR, 0, 0)
--- 	end
--- end
 
 function update(self, dt)
 	if self.fly then 
@@ -73,7 +60,7 @@ function on_message(self, message_id, message, sender)
 	elseif message_id == hash("remove") then 
 		self.fly = true
 		local angle = math.random() * 2 * math.pi
-		local power = math.random() * 1000 + 1000
+		local power = math.random() * 600 + 600
 		self.velocity = vmath.vector3(math.cos(angle) * power, math.sin(angle) * power, 0)
 	end
 end
