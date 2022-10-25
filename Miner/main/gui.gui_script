@@ -1,0 +1,129 @@
+local time_to_play = 3
+local delay = 0.3
+local grab_delay = 0.5
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+	
+	self.score = 0
+	self.score_node = gui.get_node("score")
+
+	self.active_timer = 0
+	self.active = false
+	self.start_text = gui.get_node("start_text")
+	self.start_button = gui.get_node("start_button")
+
+	self.game_over = false
+	self.delay = 0
+	self.game_ongoing = false
+	
+	self.game_over_button = gui.get_node("game_over_button")
+	self.game_over_text = gui.get_node("game_over_text")
+	self.restart_button = gui.get_node("restart_button")
+	self.restart_text = gui.get_node("restart_text")
+
+	self.grab_timer = grab_delay
+	self.grab = gui.get_node("grab")
+end
+
+local function update_score(self, score)
+	self.score = score
+	gui.set_text(self.score_node, "Score: " .. tostring(self.score))
+end
+
+function on_input(self, action_id, action)
+	if action_id == hash("touch") and not self.active and not self.game_over then
+		if gui.pick_node(self.start_button, action.x, action.y) then
+			sound.play("/board#click", {gain=1})
+			if not self.game_ongoing then  
+				self.game_ongoing = true
+				msg.post("/board#board", "start_round")
+				update_score(self, 0)
+				self.active = true
+			else
+				msg.post("/board#board", "reload_level")
+				update_score(self, 0)
+				self.game_over = false
+				self.game_ongoing = false
+				self.delay = 0
+			end
+		end
+	elseif action_id == hash("touch") and self.delay >= delay and action.released and gui.pick_node(self.restart_button, action.x, action.y) and self.game_over then 
+		msg.post("/board#board", "reload_level")
+		sound.play("/board#click", {gain=1})
+		update_score(self, 0)
+		self.game_over = false
+		self.game_ongoing = false
+		self.delay = 0
+		gui.set_visible(self.score_node, true)
+		gui.set_visible(self.start_text, true)
+		gui.set_visible(self.start_button, true)
+
+		gui.set_visible(self.game_over_button, false)
+		gui.set_visible(self.game_over_text, false)
+		gui.set_visible(self.restart_button, false)
+		gui.set_visible(self.restart_text, false)
+
+		gui.set_text(self.start_text, "Start")
+		
+	end
+end
+
+local function update_timer(self)
+	if self.active then 
+		local x = math.floor(time_to_play + 1 - self.active_timer)
+		gui.set_text(self.start_text, tostring(x) .. " sec left")
+	else 
+		gui.set_text(self.start_text, "Reload")
+	end
+end
+
+function update(self, dt)
+	if self.game_over and self.delay < delay then 
+		self.delay = self.delay + dt
+	end
+
+	if self.grab_timer < grab_delay then 
+		self.grab_timer = self.grab_timer + dt
+	else
+		gui.set_visible(self.grab, false)
+	end
+	
+	if self.active then 
+		self.active_timer = self.active_timer + dt
+		if self.active_timer >= time_to_play then
+			self.active = false
+			self.active_timer = 0
+			msg.post("/board#board", "end_round")
+		end
+		update_timer(self)
+	end
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("score_update") then 
+		update_score(self, self.score + message.amount)
+	elseif message_id == hash("game_over") then 
+		print("Game over")
+		gui.set_visible(self.score_node, false)
+		gui.set_visible(self.start_text, false)
+		gui.set_visible(self.start_button, false)
+
+		gui.set_visible(self.game_over_button, true)
+		gui.set_visible(self.game_over_text, true)
+		gui.set_visible(self.restart_button, true)
+		gui.set_visible(self.restart_text, true)
+
+		gui.set_text(self.game_over_text, "Your score is " .. tostring(self.score))
+		
+		self.game_over = true
+	elseif message_id == hash("to_much_grab") then 
+		self.grab_timer = 0
+		gui.set_visible(self.grab, true)
+		gui.set_text(self.grab, "Too much grabing!")
+	elseif message_id == hash("grab_color") then 
+		self.grab_timer = 0
+		gui.set_visible(self.grab, true)
+		gui.set_text(self.grab, "Can grab only grays")
+	end
+end
